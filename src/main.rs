@@ -1,5 +1,4 @@
 use aws_config::BehaviorVersion;
-use aws_sdk_ecs::Client;
 
 use clap::{Parser};
 use cliclack::{intro, outro};
@@ -12,6 +11,9 @@ use inputs::profile::{get_profile};
 
 mod ecs_route;
 use ecs_route::process_ecs::process_ecs;
+
+mod lambda_route;
+use lambda_route::process_lambda::process_lambda;
 
 
 #[derive(Parser)]
@@ -28,6 +30,9 @@ struct Cli {
     /// task definition name (for ecs)
     #[arg(short, long)]
     task_definition: Option<String>,
+    /// lambda function name (for lambda)
+    #[arg(short, long)]
+    lambda: Option<String>,
 }
 
 
@@ -48,11 +53,10 @@ async fn main() {
     .load()
     .await;
 
-    let client = Client::new(&config);
 
     match what {
-        What::Ecs => process_ecs(output, args.task_definition, &client).await.unwrap(),
-        What::Lambda => {},
+        What::Ecs => process_ecs(output, args.task_definition, &config).await.unwrap(),
+        What::Lambda => process_lambda(output, args.lambda, &config).await.unwrap(),
     }
 
     outro("Done").unwrap();

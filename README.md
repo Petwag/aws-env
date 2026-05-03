@@ -41,7 +41,9 @@ The profile you use should be already logged in.
 ### Ressource : ECS
 - --task-definition, -t : The task definition name.
 
+### Ressource : Lambda
+- --lambda, -l : The lambda function name
+
 ## TODO
-- Missing Lambda support
 - Adding an arg to add a valid AccessToken to the output file + AWS_REGION if needed
 - Adding support for env override in case local dev has different requirements.
