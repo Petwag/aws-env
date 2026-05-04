@@ -11,12 +11,12 @@ pub async fn process_ecs(
     output: String,
     task_definition: Option<String>,
     config: &SdkConfig,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<String, Box<dyn std::error::Error>> {
     let client = Client::new(&config);
 
     let task_definition = get_task_definition(task_definition, &client).await?;
     
-    let envs = get_env_vars(task_definition, &client).await?;
+    let envs = get_env_vars(task_definition.clone(), &client).await?;
 
     let file = File::create(&output)?;
     let mut writer = BufWriter::new(file);
@@ -25,5 +25,5 @@ pub async fn process_ecs(
         writeln!(writer, "{}=\"{}\"", key, value).expect("Unable to write to file"); // TODO: read about writeln! and expect.
     }
 
-    Ok(())
+    Ok(task_definition)
 }

@@ -11,12 +11,12 @@ pub async fn process_lambda(
     output: String,
     lambda: Option<String>,
     config: &SdkConfig,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<String, Box<dyn std::error::Error>> {
     let client = Client::new(&config);
 
     let lambda = get_function(lambda, &client).await?;
     
-    let envs = get_env_vars(lambda, &client).await?;
+    let envs = get_env_vars(lambda.clone(), &client).await?;
 
     let file = File::create(&output)?;
     let mut writer = BufWriter::new(file);
@@ -25,5 +25,5 @@ pub async fn process_lambda(
         writeln!(writer, "{}=\"{}\"", key, value).expect("Unable to write to file"); // TODO: read about writeln! and expect.
     }
 
-    Ok(())
+    Ok(lambda)
 }

@@ -47,3 +47,4 @@ The profile you use should be already logged in.
 ## TODO
 - Adding an arg to add a valid AccessToken to the output file + AWS_REGION if needed
 - Adding support for env override in case local dev has different requirements.
+- Remove the nasty unwrap and handle errors in a cleaner way than just exploding

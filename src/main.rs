@@ -1,7 +1,7 @@
 use aws_config::BehaviorVersion;
 
 use clap::{Parser};
-use cliclack::{intro, outro};
+use cliclack::{intro, note, outro};
 
 
 mod inputs;
@@ -14,7 +14,6 @@ use ecs_route::process_ecs::process_ecs;
 
 mod lambda_route;
 use lambda_route::process_lambda::process_lambda;
-
 
 #[derive(Parser)]
 struct Cli {
@@ -35,7 +34,6 @@ struct Cli {
     lambda: Option<String>,
 }
 
-
 #[tokio::main]
 async fn main() {
     let args = Cli::parse();
@@ -54,13 +52,37 @@ async fn main() {
     .await;
 
 
-    match what {
-        What::Ecs => process_ecs(output, args.task_definition, &config).await.unwrap(),
-        What::Lambda => process_lambda(output, args.lambda, &config).await.unwrap(),
-    }
+    let command = match what {
+        What::Ecs => {
+            let task_definition = process_ecs(output.clone(), args.task_definition, &config).await.unwrap();
+            format!(
+                "aws-env --output {} --profile {} --what ecs --task-definition {}",
+                quote_arg(&output),
+                quote_arg(&profile),
+                quote_arg(&task_definition)
+            )
+        }
+        What::Lambda => {
+            let lambda = process_lambda(output.clone(), args.lambda, &config).await.unwrap();
+            format!(
+                "aws-env --output {} --profile {} --what lambda --lambda {}",
+                quote_arg(&output),
+                quote_arg(&profile),
+                quote_arg(&lambda)
+            )
+        }
+    };
+
+    note("Re-run command", &command).unwrap();
 
     outro("Done").unwrap();
 
 }
 
-
+fn quote_arg(value: &str) -> String {
+    if value.is_empty() || value.chars().any(char::is_whitespace) || value.contains('"') {
+        format!("\"{}\"", value.replace('"', "\\\""))
+    } else {
+        value.to_string()
+    }
+}
