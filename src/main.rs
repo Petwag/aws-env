@@ -1,19 +1,20 @@
 use aws_config::BehaviorVersion;
 
-use clap::{Parser};
+use clap::Parser;
 use cliclack::{intro, note, outro};
 
-
 mod inputs;
-use inputs::what::{get_what, What};
-use inputs::output::{get_output};
-use inputs::profile::{get_profile};
+use inputs::get_output::get_output;
+use inputs::get_profile::get_profile;
+use inputs::get_what::{What, get_what};
 
 mod ecs_route;
 use ecs_route::process_ecs::process_ecs;
 
 mod lambda_route;
 use lambda_route::process_lambda::process_lambda;
+
+use crate::inputs::get_credentials::get_credentials;
 
 #[derive(Parser)]
 struct Cli {
@@ -26,6 +27,9 @@ struct Cli {
     /// type or ressource
     #[arg(short, long, value_enum)]
     what: Option<What>,
+    /// add credentials to output
+    #[arg(short, long)]
+    credentials: bool,
     /// task definition name (for ecs)
     #[arg(short, long)]
     task_definition: Option<String>,
@@ -47,14 +51,15 @@ async fn main() {
     let profile = get_profile(args.profile).unwrap();
 
     let config = aws_config::defaults(BehaviorVersion::latest())
-    .profile_name(&profile)
-    .load()
-    .await;
+        .profile_name(&profile)
+        .load()
+        .await;
 
-
-    let command = match what {
+    let mut command = match what {
         What::Ecs => {
-            let task_definition = process_ecs(output.clone(), args.task_definition, &config).await.unwrap();
+            let task_definition = process_ecs(output.clone(), args.task_definition, &config)
+                .await
+                .unwrap();
             format!(
                 "aws-env --output {} --profile {} --what ecs --task-definition {}",
                 quote_arg(&output),
@@ -63,7 +68,9 @@ async fn main() {
             )
         }
         What::Lambda => {
-            let lambda = process_lambda(output.clone(), args.lambda, &config).await.unwrap();
+            let lambda = process_lambda(output.clone(), args.lambda, &config)
+                .await
+                .unwrap();
             format!(
                 "aws-env --output {} --profile {} --what lambda --lambda {}",
                 quote_arg(&output),
@@ -73,10 +80,16 @@ async fn main() {
         }
     };
 
+    if args.credentials == true {
+        get_credentials(output, profile)
+            .await
+            .expect("Failed to get credentials");
+        command.push_str(" --credentials");
+    }
+
     note("Re-run command", &command).unwrap();
 
     outro("Done").unwrap();
-
 }
 
 fn quote_arg(value: &str) -> String {
