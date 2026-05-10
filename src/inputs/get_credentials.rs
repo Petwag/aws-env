@@ -23,15 +23,6 @@ pub async fn get_credentials(
 
     let session_token = extract_json_value(&stdout, "SessionToken").unwrap_or_default();
 
-    let env = format!(
-        "AWS_ACCESS_KEY_ID={}\n\
-        AWS_SECRET_ACCESS_KEY={}\n\
-        AWS_SESSION_TOKEN={}\n",
-        access_key, secret_key, session_token
-    );
-
-    println!("{}", env);
-
     let file = OpenOptions::new()
         .create(true) // create if missing
         .append(true) // append instead of truncate
