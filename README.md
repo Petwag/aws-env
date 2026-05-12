@@ -4,6 +4,9 @@ This is a simple cli to fetch env from ECS task definition or Lambda function an
 
 ## Prerequisite
 
+That cli works on the assumption that the aws cli is installed.
+It has been tested with version 2.34.41.
+
 You need to use the aws cli to login to a profile locally on your computer.
 You then need to login to the account you want to use.
 For example if you have sso configured

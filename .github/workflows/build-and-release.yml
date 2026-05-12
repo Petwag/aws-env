@@ -1,0 +1,70 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+      version-changed: ${{ steps.check-version.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get current version
+        id: get-version
+        run: |
+          VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $VERSION"
+
+      - name: Check if version changed
+        id: check-version
+        run: |
+          VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          TAG="v$VERSION"
+
+          # Check if tag already exists
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "Tag $TAG already exists, skipping release"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "New version $VERSION detected, will create release"
+          fi
+
+  build-and-release:
+    needs: check-version
+    if: needs.check-version.outputs.version-changed == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release
+        run: cargo build --release
+
+      - name: Create tag
+        run: |
+          $VERSION = "${{ needs.check-version.outputs.version }}"
+          $TAG = "v$VERSION"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag $TAG
+          git push origin $TAG
+
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.check-version.outputs.version }}
+          files: target/release/aws-env.exe
+          token: ${{ secrets.GITHUB_TOKEN }}
