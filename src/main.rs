@@ -13,6 +13,7 @@ use ecs_route::process_ecs::process_ecs;
 
 mod lambda_route;
 use lambda_route::process_lambda::process_lambda;
+use tokio::runtime::Builder;
 
 use crate::inputs::get_credentials::get_credentials;
 
@@ -38,58 +39,65 @@ struct Cli {
     lambda: Option<String>,
 }
 
-#[tokio::main]
-async fn main() {
-    let args = Cli::parse();
+fn main() {
+    let rt = Builder::new_current_thread()
+        .enable_time()
+        .enable_io()
+        .build()
+        .unwrap();
 
-    intro("Fetch Env").unwrap();
+    rt.block_on(async {
+        let args = Cli::parse();
 
-    let output = get_output(args.output).unwrap();
+        intro("Fetch Env").unwrap();
 
-    let what = get_what(args.what).unwrap();
+        let output = get_output(args.output).unwrap();
 
-    let profile = get_profile(args.profile).unwrap();
+        let what = get_what(args.what).unwrap();
 
-    let config = aws_config::defaults(BehaviorVersion::latest())
-        .profile_name(&profile)
-        .load()
-        .await;
+        let profile = get_profile(args.profile).unwrap();
 
-    let mut command = match what {
-        What::Ecs => {
-            let task_definition = process_ecs(output.clone(), args.task_definition, &config)
+        let config = aws_config::defaults(BehaviorVersion::latest())
+            .profile_name(&profile)
+            .load()
+            .await;
+
+        let mut command = match what {
+            What::Ecs => {
+                let task_definition = process_ecs(output.clone(), args.task_definition, &config)
+                    .await
+                    .unwrap();
+                format!(
+                    "aws-env --output {} --profile {} --what ecs --task-definition {}",
+                    quote_arg(&output),
+                    quote_arg(&profile),
+                    quote_arg(&task_definition)
+                )
+            }
+            What::Lambda => {
+                let lambda = process_lambda(&profile, &output, args.lambda)
+                    .await
+                    .unwrap();
+                format!(
+                    "aws-env --output {} --profile {} --what lambda --lambda {}",
+                    quote_arg(&output),
+                    quote_arg(&profile),
+                    quote_arg(&lambda)
+                )
+            }
+        };
+
+        if args.credentials == true {
+            get_credentials(output, profile)
                 .await
-                .unwrap();
-            format!(
-                "aws-env --output {} --profile {} --what ecs --task-definition {}",
-                quote_arg(&output),
-                quote_arg(&profile),
-                quote_arg(&task_definition)
-            )
+                .expect("Failed to get credentials");
+            command.push_str(" --credentials");
         }
-        What::Lambda => {
-            let lambda = process_lambda(output.clone(), args.lambda, &config)
-                .await
-                .unwrap();
-            format!(
-                "aws-env --output {} --profile {} --what lambda --lambda {}",
-                quote_arg(&output),
-                quote_arg(&profile),
-                quote_arg(&lambda)
-            )
-        }
-    };
 
-    if args.credentials == true {
-        get_credentials(output, profile)
-            .await
-            .expect("Failed to get credentials");
-        command.push_str(" --credentials");
-    }
+        note("Re-run command", &command).unwrap();
 
-    note("Re-run command", &command).unwrap();
-
-    outro("Done").unwrap();
+        outro("Done").unwrap();
+    });
 }
 
 fn quote_arg(value: &str) -> String {
