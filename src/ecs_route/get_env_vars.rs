@@ -1,4 +1,4 @@
-use std::process::Command;
+use std::{collections::HashMap, process::Command};
 
 use cliclack::{select, spinner};
 use serde::Deserialize;
@@ -36,7 +36,7 @@ struct EnvironmentVariable {
 pub async fn get_env_vars(
     task_definition: &String,
     profile: &String,
-) -> Result<Vec<(String, String)>, Box<dyn std::error::Error>> {
+) -> Result<HashMap<String, String>, Box<dyn std::error::Error>> {
     let spin = spinner();
 
     spin.start("Fetching task definition...");
@@ -91,7 +91,7 @@ pub async fn get_env_vars(
             .interact()?
     };
 
-    let mut envs = Vec::new();
+    let mut envs = HashMap::new();
 
     for container in containers {
         if container.name.as_deref() != Some(selected_container.as_str()) {
@@ -103,12 +103,10 @@ pub async fn get_env_vars(
                 let key = env.name.unwrap_or_default();
                 let value = env.value.unwrap_or_default();
 
-                envs.push((key, value));
+                envs.insert(key, value);
             }
         }
     }
-
-    envs.sort_by(|a, b| a.0.cmp(&b.0));
 
     Ok(envs)
 }

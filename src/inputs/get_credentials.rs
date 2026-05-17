@@ -1,8 +1,8 @@
-use std::process::Command;
+use std::{collections::HashMap, process::Command};
 
 pub async fn get_credentials(
     profile: &String,
-) -> Result<Vec<(String, String)>, Box<dyn std::error::Error>> {
+) -> Result<HashMap<String, String>, Box<dyn std::error::Error>> {
     let cli_result = Command::new("aws")
         .args(["configure", "export-credentials", "--profile", profile])
         .output()?;
@@ -20,11 +20,11 @@ pub async fn get_credentials(
 
     let session_token = extract_json_value(&stdout, "SessionToken").unwrap_or_default();
 
-    let envs = vec![
+    let envs = HashMap::from([
         ("AWS_ACCESS_KEY_ID".into(), access_key),
         ("AWS_SECRET_ACCESS_KEY".into(), secret_key),
         ("AWS_SESSION_TOKEN".into(), session_token),
-    ];
+    ]);
 
     Ok(envs)
 }

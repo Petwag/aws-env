@@ -18,7 +18,7 @@ struct Environment {
 pub async fn get_env_vars(
     profile: &String,
     function: &String,
-) -> Result<Vec<(String, String)>, Box<dyn std::error::Error>> {
+) -> Result<HashMap<String, String>, Box<dyn std::error::Error>> {
     let spin = spinner();
 
     spin.start("Fetching task definition...");
@@ -53,9 +53,7 @@ pub async fn get_env_vars(
     let vars = res
         .environment
         .and_then(|env| env.variables)
-        .unwrap_or_default()
-        .into_iter()
-        .collect::<Vec<(String, String)>>();
+        .unwrap_or_default();
 
     Ok(vars)
 }

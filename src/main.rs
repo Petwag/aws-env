@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 
@@ -32,6 +33,9 @@ struct Cli {
     /// add credentials to output
     #[arg(short, long)]
     credentials: bool,
+    /// only override credentials
+    #[arg(short = 's', long)]
+    only_credentials: bool,
     /// task definition name (for ecs)
     #[arg(short, long)]
     task_definition: Option<String>,
@@ -50,9 +54,33 @@ fn main() {
 
         let output = get_output(args.output).unwrap();
 
-        let what = get_what(args.what).unwrap();
-
         let profile = get_profile(args.profile).unwrap();
+
+        if args.only_credentials == true {
+            let mut envs = read_envs_from_file(&output);
+            let credentials = get_credentials(&profile)
+                .await
+                .expect("Failed to get credentials");
+
+            envs.extend(credentials);
+
+            write_envs_to_file(&output, &envs);
+
+            note(
+                "Re-run command",
+                &format!(
+                    "aws-env --output {} --profile {} --only-credentials",
+                    quote_arg(&output),
+                    quote_arg(&profile)
+                ),
+            )
+            .unwrap();
+
+            outro("Done").unwrap();
+            return;
+        }
+
+        let what = get_what(args.what).unwrap();
 
         let (mut envs, mut command) = match what {
             What::Ecs => {
@@ -108,11 +136,33 @@ fn quote_arg(value: &str) -> String {
     }
 }
 
-fn write_envs_to_file(output: &String, envs: &Vec<(String, String)>) {
+fn write_envs_to_file(output: &String, envs: &HashMap<String, String>) {
     let file = File::create(output).unwrap();
     let mut writer = BufWriter::new(file);
 
-    for (key, value) in envs.iter() {
+    let mut items: Vec<(&String, &String)> = envs.iter().collect();
+
+    items.sort_by_key(|(key, _value)| *key);
+
+    for (key, value) in items {
         writeln!(writer, "{}=\"{}\"", key, value).expect("Unable to write to file"); // TODO: read about writeln! and expect.
     }
+}
+
+fn read_envs_from_file(output: &String) -> HashMap<String, String> {
+    let content = std::fs::read_to_string(output).unwrap();
+
+    content
+        .lines()
+        .filter_map(|line| {
+            let mut parts = line.splitn(2, '=');
+
+            match (parts.next(), parts.next()) {
+                (Some(key), Some(value)) => {
+                    Some((key.to_string(), value.trim_matches('"').to_string()))
+                }
+                _ => None,
+            }
+        })
+        .collect()
 }
