@@ -1,22 +1,17 @@
 use std::fs::File;
-use std::io::{Write, BufWriter};
-
-use aws_config::SdkConfig;
-use aws_sdk_ecs::Client;
+use std::io::{BufWriter, Write};
 
 use super::get_env_vars::get_env_vars;
 use super::get_task_definition::get_task_definition;
 
 pub async fn process_ecs(
-    output: String,
+    profile: &String,
+    output: &String,
     task_definition: Option<String>,
-    config: &SdkConfig,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    let client = Client::new(&config);
+    let task_definition = get_task_definition(task_definition, &profile).await?;
 
-    let task_definition = get_task_definition(task_definition, &client).await?;
-    
-    let envs = get_env_vars(task_definition.clone(), &client).await?;
+    let envs = get_env_vars(&task_definition, &profile).await?;
 
     let file = File::create(&output)?;
     let mut writer = BufWriter::new(file);

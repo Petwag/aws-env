@@ -1,7 +1,6 @@
-use aws_config::BehaviorVersion;
-
 use clap::Parser;
 use cliclack::{intro, note, outro};
+use tokio::runtime::Builder;
 
 mod inputs;
 use inputs::get_output::get_output;
@@ -13,7 +12,6 @@ use ecs_route::process_ecs::process_ecs;
 
 mod lambda_route;
 use lambda_route::process_lambda::process_lambda;
-use tokio::runtime::Builder;
 
 use crate::inputs::get_credentials::get_credentials;
 
@@ -40,11 +38,7 @@ struct Cli {
 }
 
 fn main() {
-    let rt = Builder::new_current_thread()
-        .enable_time()
-        .enable_io()
-        .build()
-        .unwrap();
+    let rt = Builder::new_current_thread().build().unwrap();
 
     rt.block_on(async {
         let args = Cli::parse();
@@ -57,14 +51,9 @@ fn main() {
 
         let profile = get_profile(args.profile).unwrap();
 
-        let config = aws_config::defaults(BehaviorVersion::latest())
-            .profile_name(&profile)
-            .load()
-            .await;
-
         let mut command = match what {
             What::Ecs => {
-                let task_definition = process_ecs(output.clone(), args.task_definition, &config)
+                let task_definition = process_ecs(&profile, &output, args.task_definition)
                     .await
                     .unwrap();
                 format!(
