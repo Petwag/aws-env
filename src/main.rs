@@ -1,3 +1,6 @@
+use std::fs::File;
+use std::io::{BufWriter, Write};
+
 use clap::Parser;
 use cliclack::{intro, note, outro};
 use tokio::runtime::Builder;
@@ -51,37 +54,45 @@ fn main() {
 
         let profile = get_profile(args.profile).unwrap();
 
-        let mut command = match what {
+        let (mut envs, mut command) = match what {
             What::Ecs => {
-                let task_definition = process_ecs(&profile, &output, args.task_definition)
-                    .await
-                    .unwrap();
-                format!(
-                    "aws-env --output {} --profile {} --what ecs --task-definition {}",
-                    quote_arg(&output),
-                    quote_arg(&profile),
-                    quote_arg(&task_definition)
+                let (envs, task_definition) =
+                    process_ecs(&profile, args.task_definition).await.unwrap();
+                (
+                    envs,
+                    format!(
+                        "aws-env --output {} --profile {} --what ecs --task-definition {}",
+                        quote_arg(&output),
+                        quote_arg(&profile),
+                        quote_arg(&task_definition)
+                    ),
                 )
             }
             What::Lambda => {
-                let lambda = process_lambda(&profile, &output, args.lambda)
-                    .await
-                    .unwrap();
-                format!(
-                    "aws-env --output {} --profile {} --what lambda --lambda {}",
-                    quote_arg(&output),
-                    quote_arg(&profile),
-                    quote_arg(&lambda)
+                let (envs, lambda) = process_lambda(&profile, args.lambda).await.unwrap();
+                (
+                    envs,
+                    format!(
+                        "aws-env --output {} --profile {} --what lambda --lambda {}",
+                        quote_arg(&output),
+                        quote_arg(&profile),
+                        quote_arg(&lambda)
+                    ),
                 )
             }
         };
 
         if args.credentials == true {
-            get_credentials(output, profile)
+            let credentials = get_credentials(&profile)
                 .await
                 .expect("Failed to get credentials");
+
+            envs.extend(credentials);
+
             command.push_str(" --credentials");
         }
+
+        write_envs_to_file(&output, &envs);
 
         note("Re-run command", &command).unwrap();
 
@@ -94,5 +105,14 @@ fn quote_arg(value: &str) -> String {
         format!("\"{}\"", value.replace('"', "\\\""))
     } else {
         value.to_string()
+    }
+}
+
+fn write_envs_to_file(output: &String, envs: &Vec<(String, String)>) {
+    let file = File::create(output).unwrap();
+    let mut writer = BufWriter::new(file);
+
+    for (key, value) in envs.iter() {
+        writeln!(writer, "{}=\"{}\"", key, value).expect("Unable to write to file"); // TODO: read about writeln! and expect.
     }
 }

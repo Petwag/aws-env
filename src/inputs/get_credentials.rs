@@ -1,13 +1,10 @@
-use std::fs::OpenOptions;
-use std::io::{BufWriter, Write};
 use std::process::Command;
 
 pub async fn get_credentials(
-    output: String,
-    profile: String,
-) -> Result<(), Box<dyn std::error::Error>> {
+    profile: &String,
+) -> Result<Vec<(String, String)>, Box<dyn std::error::Error>> {
     let cli_result = Command::new("aws")
-        .args(["configure", "export-credentials", "--profile", &profile])
+        .args(["configure", "export-credentials", "--profile", profile])
         .output()?;
 
     if !cli_result.status.success() {
@@ -23,21 +20,13 @@ pub async fn get_credentials(
 
     let session_token = extract_json_value(&stdout, "SessionToken").unwrap_or_default();
 
-    let file = OpenOptions::new()
-        .create(true) // create if missing
-        .append(true) // append instead of truncate
-        .open(&output)?;
+    let envs = vec![
+        ("AWS_ACCESS_KEY_ID".into(), access_key),
+        ("AWS_SECRET_ACCESS_KEY".into(), secret_key),
+        ("AWS_SESSION_TOKEN".into(), session_token),
+    ];
 
-    let mut writer = BufWriter::new(file);
-
-    writeln!(writer, "{}=\"{}\"", "AWS_ACCESS_KEY_ID", access_key)
-        .expect("Unable to write to file");
-    writeln!(writer, "{}=\"{}\"", "AWS_SECRET_ACCESS_KEY", secret_key)
-        .expect("Unable to write to file");
-    writeln!(writer, "{}=\"{}\"", "AWS_SESSION_TOKEN", session_token)
-        .expect("Unable to write to file");
-
-    Ok(())
+    Ok(envs)
 }
 
 fn extract_json_value(json: &str, key: &str) -> Option<String> {
