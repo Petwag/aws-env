@@ -1,3 +1,4 @@
+use core::fmt;
 use std::{collections::HashMap, process::Command};
 
 use cliclack::{select, spinner};
@@ -35,18 +36,24 @@ struct EnvironmentVariable {
 
 pub async fn get_env_vars(
     task_definition: &String,
+    task_definition_version: &Option<String>,
     profile: &String,
 ) -> Result<HashMap<String, String>, Box<dyn std::error::Error>> {
     let spin = spinner();
 
     spin.start("Fetching task definition...");
 
+    let task_definition_full = match task_definition_version {
+        Some(version) => format!("{}:{}", task_definition, version),
+        None => task_definition.clone(),
+    };
+
     let output = Command::new("aws")
         .args([
             "ecs",
             "describe-task-definition",
             "--task-definition",
-            task_definition,
+            &task_definition_full,
             "--output",
             "json",
             "--profile",

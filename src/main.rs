@@ -36,15 +36,18 @@ struct Cli {
     /// only override credentials
     #[arg(long)]
     only_credentials: bool,
+    /// Override fetched values with another file (key=value format)
+    #[arg(long)]
+    override_file: Option<String>,
     /// task definition name (for ecs)
     #[arg(short, long)]
     task_definition: Option<String>,
+    /// task definition version (for ecs)
+    #[arg(short = 'v', long)]
+    task_definition_version: Option<i32>,
     /// lambda function name (for lambda)
     #[arg(short, long)]
     lambda: Option<String>,
-    /// Override fetched values with another file (key=value format)
-    #[arg(short = 'v', long)]
-    override_file: Option<String>,
 }
 
 fn main() {
@@ -87,17 +90,28 @@ fn main() {
 
         let (mut envs, mut command) = match what {
             What::Ecs => {
-                let (envs, task_definition) =
-                    process_ecs(&profile, args.task_definition).await.unwrap();
-                (
-                    envs,
-                    format!(
-                        "aws-env --output {} --profile {} --what ecs --task-definition {}",
-                        quote_arg(&output),
-                        quote_arg(&profile),
-                        quote_arg(&task_definition)
-                    ),
-                )
+                let (envs, task_definition, task_definition_version) =
+                    process_ecs(&profile, args.task_definition, args.task_definition_version)
+                        .await
+                        .unwrap();
+                let mut formatted = format!(
+                    "aws-env --output {} --profile {} --what ecs --task-definition {}",
+                    quote_arg(&output),
+                    quote_arg(&profile),
+                    quote_arg(&task_definition)
+                );
+
+                formatted = match task_definition_version {
+                    Some(version) => {
+                        format!(
+                            "{} --task-definition-version {}",
+                            formatted,
+                            quote_arg(&version)
+                        )
+                    }
+                    None => formatted,
+                };
+                (envs, formatted)
             }
             What::Lambda => {
                 let (envs, lambda) = process_lambda(&profile, args.lambda).await.unwrap();
