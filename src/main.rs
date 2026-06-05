@@ -34,7 +34,7 @@ struct Cli {
     #[arg(short, long)]
     credentials: bool,
     /// only override credentials
-    #[arg(short = 's', long)]
+    #[arg(long)]
     only_credentials: bool,
     /// task definition name (for ecs)
     #[arg(short, long)]
@@ -42,6 +42,9 @@ struct Cli {
     /// lambda function name (for lambda)
     #[arg(short, long)]
     lambda: Option<String>,
+    /// Override fetched values with another file (key=value format)
+    #[arg(short = 'v', long)]
+    override_file: Option<String>,
 }
 
 fn main() {
@@ -118,6 +121,14 @@ fn main() {
             envs.extend(credentials);
 
             command.push_str(" --credentials");
+        }
+
+        if args.override_file.is_some() {
+            let override_file = args.override_file.unwrap();
+            let override_envs = read_envs_from_file(&override_file);
+            envs.extend(override_envs);
+
+            command.push_str(&format!(" --override-file {}", quote_arg(&override_file)));
         }
 
         write_envs_to_file(&output, &envs);
