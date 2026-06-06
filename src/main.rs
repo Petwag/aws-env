@@ -45,6 +45,9 @@ struct Cli {
     /// task definition version (for ecs)
     #[arg(short = 'v', long)]
     task_definition_version: Option<i32>,
+    /// task definition container (for ecs)
+    #[arg(long)]
+    task_definition_container: Option<String>,
     /// lambda function name (for lambda)
     #[arg(short, long)]
     lambda: Option<String>,
@@ -90,10 +93,15 @@ fn main() {
 
         let (mut envs, mut command) = match what {
             What::Ecs => {
-                let (envs, task_definition, task_definition_version) =
-                    process_ecs(&profile, args.task_definition, args.task_definition_version)
-                        .await
-                        .unwrap();
+                let (envs, task_definition, task_definition_version, task_definition_container) =
+                    process_ecs(
+                        &profile,
+                        args.task_definition,
+                        args.task_definition_version,
+                        args.task_definition_container,
+                    )
+                    .await
+                    .unwrap();
                 let mut formatted = format!(
                     "aws-env --output {} --profile {} --what ecs --task-definition {}",
                     quote_arg(&output),
@@ -107,6 +115,17 @@ fn main() {
                             "{} --task-definition-version {}",
                             formatted,
                             quote_arg(&version)
+                        )
+                    }
+                    None => formatted,
+                };
+
+                formatted = match task_definition_container {
+                    Some(container) => {
+                        format!(
+                            "{} --task-definition-container {}",
+                            formatted,
+                            quote_arg(&container)
                         )
                     }
                     None => formatted,

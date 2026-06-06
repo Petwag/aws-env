@@ -37,8 +37,9 @@ struct EnvironmentVariable {
 pub async fn get_env_vars(
     task_definition: &String,
     task_definition_version: &Option<String>,
+    task_definition_container: &Option<String>,
     profile: &String,
-) -> Result<HashMap<String, String>, Box<dyn std::error::Error>> {
+) -> Result<(HashMap<String, String>, Option<String>), Box<dyn std::error::Error>> {
     let spin = spinner();
 
     spin.start("Fetching task definition...");
@@ -85,17 +86,29 @@ pub async fn get_env_vars(
         return Err("No containers found".into());
     }
 
-    let selected_container = if container_list.len() == 1 {
-        container_list[0].clone()
-    } else {
-        let container_items: Vec<(String, String, String)> = container_list
-            .iter()
-            .map(|name| (name.clone(), name.clone(), String::new()))
-            .collect();
+    let selected_container = match task_definition_container {
+        Some(container) => {
+            if !container_list.contains(container) {
+                return Err(
+                    format!("Container '{}' not found in task definition", container).into(),
+                );
+            }
+            container.clone()
+        }
+        None => {
+            if container_list.len() == 1 {
+                container_list[0].clone()
+            } else {
+                let container_items: Vec<(String, String, String)> = container_list
+                    .iter()
+                    .map(|name| (name.clone(), name.clone(), String::new()))
+                    .collect();
 
-        select("Choose container")
-            .items(&container_items)
-            .interact()?
+                select("Choose container")
+                    .items(&container_items)
+                    .interact()?
+            }
+        }
     };
 
     let mut envs = HashMap::new();
@@ -115,5 +128,5 @@ pub async fn get_env_vars(
         }
     }
 
-    Ok(envs)
+    Ok((envs, Some(selected_container)))
 }
