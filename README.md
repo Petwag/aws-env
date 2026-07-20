@@ -1,5 +1,7 @@
 This is a simple cli to fetch env from ECS task definition or Lambda function and write it down in a .env format to be ready to use
 
+Warning: This is still a work in progress
+
 # Installation
 
 ## Prerequisite
