@@ -1,0 +1,13 @@
+<svg width="200" height="180" viewBox="0 0 200 180" xmlns="http://www.w3.org/2000/svg">
+  <polygon points="100,20 30,141.24 170,141.24"
+           fill="#fff7ad"
+           stroke="black"
+           stroke-width="2" />
+   <circle cx="100" cy="100" r="20"
+          fill="none"
+          stroke="black"
+          stroke-width="4" />
+  <line x1="100" y1="141.24" x2="100" y2="120"
+        stroke="black"
+        stroke-width="4" />
+</svg>
