@@ -1,29 +1,37 @@
-use std::fs::File;
-use std::io::{Write, BufWriter};
-
-use aws_config::SdkConfig;
-use aws_sdk_ecs::Client;
+use std::collections::HashMap;
 
 use super::get_env_vars::get_env_vars;
 use super::get_task_definition::get_task_definition;
 
 pub async fn process_ecs(
-    output: String,
+    profile: &String,
     task_definition: Option<String>,
-    config: &SdkConfig,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let client = Client::new(&config);
+    task_definition_version: Option<i32>,
+    task_definition_container: Option<String>,
+) -> Result<
+    (
+        HashMap<String, String>,
+        String,
+        Option<String>,
+        Option<String>,
+    ),
+    Box<dyn std::error::Error>,
+> {
+    let (task_definition, task_definition_version) =
+        get_task_definition(task_definition, task_definition_version, &profile).await?;
 
-    let task_definition = get_task_definition(task_definition, &client).await?;
-    
-    let envs = get_env_vars(task_definition.clone(), &client).await?;
+    let (envs, task_definition_container) = get_env_vars(
+        &task_definition,
+        &task_definition_version,
+        &task_definition_container,
+        &profile,
+    )
+    .await?;
 
-    let file = File::create(&output)?;
-    let mut writer = BufWriter::new(file);
-
-    for (key, value) in envs.iter() {
-        writeln!(writer, "{}=\"{}\"", key, value).expect("Unable to write to file"); // TODO: read about writeln! and expect.
-    }
-
-    Ok(task_definition)
+    Ok((
+        envs,
+        task_definition,
+        task_definition_version,
+        task_definition_container,
+    ))
 }

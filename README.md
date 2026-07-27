@@ -54,10 +54,13 @@ The profile you use should be already logged in.
 - --output, -o <OUTPUT>: This is the name of the output file the cli will write to
 - --what, -w <WHAT>: This is the type of ressource you want to target.
 - --credentials : Fetch access tokens
+- --override-file <FILE> : The path to an env file that will override the fetched data
+- --only-credentials : Bypass all the rest on only refresh the credentials
 
 ### Ressource : ECS
 
-- --task-definition, -t <TASK>: The task definition name.
+- --task-definition-container, -t <TASK>: The task definition name.
+- --task-definition-version, -v <NUMBER>: The version of the task, if not defined take the latest version
 
 ### Ressource : Lambda
 
@@ -65,6 +68,5 @@ The profile you use should be already logged in.
 
 ## TODO
 
-- Adding an arg to add a valid AccessToken to the output file + AWS_REGION if needed
-- Adding support for env override in case local dev has different requirements.
+- Adding an arg to add AWS_REGION if needed
 - Remove the nasty unwrap and handle errors in a cleaner way than just exploding
