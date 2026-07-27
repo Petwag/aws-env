@@ -1,29 +1,15 @@
-use std::fs::File;
-use std::io::{Write, BufWriter};
-
-use aws_config::SdkConfig;
-use aws_sdk_lambda::Client;
+use std::collections::HashMap;
 
 use super::get_env_vars::get_env_vars;
 use super::get_function::get_function;
 
 pub async fn process_lambda(
-    output: String,
+    profile: &String,
     lambda: Option<String>,
-    config: &SdkConfig,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let client = Client::new(&config);
+) -> Result<(HashMap<String, String>, String), Box<dyn std::error::Error>> {
+    let lambda = get_function(profile, lambda).await?;
 
-    let lambda = get_function(lambda, &client).await?;
-    
-    let envs = get_env_vars(lambda.clone(), &client).await?;
+    let envs = get_env_vars(profile, &lambda).await?;
 
-    let file = File::create(&output)?;
-    let mut writer = BufWriter::new(file);
-
-    for (key, value) in envs.iter() {
-        writeln!(writer, "{}=\"{}\"", key, value).expect("Unable to write to file"); // TODO: read about writeln! and expect.
-    }
-
-    Ok(lambda)
+    Ok((envs, lambda))
 }
