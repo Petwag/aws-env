@@ -1,4 +1,3 @@
-use core::fmt;
 use std::{collections::HashMap, process::Command};
 
 use cliclack::{select, spinner};

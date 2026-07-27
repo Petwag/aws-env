@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 
 use clap::Parser;
-use cliclack::{intro, note, outro};
+use cliclack::{confirm, intro, note, outro};
 use tokio::runtime::Builder;
 
 mod inputs;
@@ -154,6 +154,20 @@ fn main() {
             envs.extend(credentials);
 
             command.push_str(" --credentials");
+        } else {
+            let creds = confirm("Do you want to fetch credentials?")
+                .interact()
+                .unwrap();
+
+            if creds == true {
+                let credentials = get_credentials(&profile)
+                    .await
+                    .expect("Failed to get credentials");
+
+                envs.extend(credentials);
+
+                command.push_str(" --credentials");
+            }
         }
 
         if args.override_file.is_some() {
@@ -174,7 +188,7 @@ fn main() {
 
 fn quote_arg(value: &str) -> String {
     if value.is_empty() || value.chars().any(char::is_whitespace) || value.contains('"') {
-        format!("\"{}\"", value.replace('"', "\\\""))
+        return format!("\"{}\"", value.replace('"', "\\\""));
     } else {
         value.to_string()
     }
